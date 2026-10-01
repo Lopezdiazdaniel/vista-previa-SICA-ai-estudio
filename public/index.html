@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SICA - Sistema de Gestión y Control de Acceso</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SICA">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Banner Offline-First con sincronización manual/automática -->
+  <div id="offline-banner" class="offline-banner">
+    <div>
+      <span>🟠 <strong>MODO FUERA DE LÍNEA ACTIVO:</strong> Las operaciones se guardan localmente en su dispositivo y se sincronizarán al recuperar la red.</span>
+    </div>
+    <button onclick="window.SICA_OFFLINE.syncAllOfflineRecords().then(r => window.App.showToast(r.message, 'info'))">
+      Sincronizar Ahora
+    </button>
+  </div>
+
+  <!-- Banner de Emergencia Crítica en Vivo (Supervisor y Operaciones) -->
+  <div id="emergency-banner" class="emergency-alert-banner">
+    <!-- Populated dynamically when emergency events occur -->
+  </div>
+
+  <!-- Barra de Encabezado Superior -->
+  <header id="app-header" class="app-header" style="display: none;">
+    <!-- Populated by App.renderHeader() -->
+  </header>
+
+  <!-- Contenedor Principal de la PWA -->
+  <main id="app-main" class="app-main">
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-dim); font-size: 1.1rem;">
+      Iniciando Sistema de Seguridad SICA...
+    </div>
+  </main>
+
+  <!-- Contenedor Flotante de Notificaciones Toast -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts de la Aplicación -->
+  <script src="js/db-offline.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/admin-view.js"></script>
+  <script src="js/supervisor-view.js"></script>
+  <script src="js/guardia-view.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
