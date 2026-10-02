@@ -331,6 +331,11 @@
       return `${API_BASE}/reports/export/excel?${q}`;
     },
 
+    async getAccessTrend7Days(id_servicio = null) {
+      const q = id_servicio ? `?id_servicio=${id_servicio}` : '';
+      return request(`/reports/access-trend-7days${q}`);
+    },
+
     getCsvExportUrl(params = {}) {
       const cleanParams = {};
       for (const [k, v] of Object.entries(params)) {
@@ -340,6 +345,17 @@
       if (token) cleanParams.token = token;
       const q = new URLSearchParams(cleanParams).toString();
       return `${API_BASE}/reports/export/csv?${q}`;
+    },
+
+    getPdfExportUrl(params = {}) {
+      const cleanParams = {};
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== '' && v !== null && v !== undefined) cleanParams[k] = v;
+      }
+      const token = getToken();
+      if (token) cleanParams.token = token;
+      const q = new URLSearchParams(cleanParams).toString();
+      return `${API_BASE}/reports/export/pdf?${q}`;
     },
 
     async downloadExport(url, defaultFilename = 'reporte_sica.xlsx') {

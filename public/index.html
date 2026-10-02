@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SICA - Sistema de Gestión y Control de Acceso</title>
+  <meta name="description" content="Sistema PWA de gestión y control de accesos vehiculares y peatonales, bitácora de novedades y emergencias, supervisión operativa y reportes para seguridad privada.">
+  <meta property="og:title" content="SICA - Sistema de Gestión y Control de Acceso">
+  <meta property="og:description" content="Sistema PWA de gestión y control de accesos vehiculares y peatonales, bitácora de novedades y emergencias, supervisión operativa y reportes para seguridad privada.">
   
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
@@ -49,6 +52,12 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts de la Aplicación -->
+  <script src="js/chart.umd.js"></script>
+  <script src="js/jspdf.umd.min.js"></script>
+  <script src="js/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/pdf-export.js"></script>
+  <script type="module" src="js/firebase-client.js"></script>
+  <script src="js/firestore-view.js"></script>
   <script src="js/db-offline.js"></script>
   <script src="js/api.js"></script>
   <script src="js/admin-view.js"></script>

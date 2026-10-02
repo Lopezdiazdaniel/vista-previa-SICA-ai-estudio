@@ -12,6 +12,7 @@ const accessRoutes = require('./routes/access');
 const logbookRoutes = require('./routes/logbook');
 const consignasRoutes = require('./routes/consignas');
 const reportsRoutes = require('./routes/reports');
+const firestoreRoutes = require('./routes/firestore');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use('/api/access', accessRoutes);
 app.use('/api/logbook', logbookRoutes);
 app.use('/api/consignas', consignasRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/firestore', firestoreRoutes);
 
 // Fallback to index.html for Single Page Application navigation
 app.use((req, res, next) => {
@@ -70,10 +72,10 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     await db.initSchema();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('================================================================');
       console.log(`🛡️  SICA - Sistema de Gestión y Control de Acceso`);
-      console.log(`🚀  Servidor activo en: http://localhost:${PORT}`);
+      console.log(`🚀  Servidor activo en: http://0.0.0.0:${PORT}`);
       console.log(`📱  PWA y API listas para operar en línea y fuera de línea`);
       console.log('================================================================');
       console.log('Cuentas demo disponibles:');

@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "Service": {
+      "title": "Service",
+      "description": "Caseta o inmueble de seguridad privada custodiado",
+      "type": "object",
+      "properties": {
+        "id_servicio": { "type": "number", "description": "Identificador numérico o ID único" },
+        "nombre_cliente_o_lugar": { "type": "string", "maxLength": 200, "description": "Nombre de la empresa, parque o fraccionamiento" },
+        "tipo_servicio": { "type": "string", "enum": ["Residencial", "Industrial", "Corporativo", "Comercial", "Educativo", "Otro"] },
+        "direccion_calle": { "type": "string", "maxLength": 200 },
+        "direccion_numero": { "type": "string", "maxLength": 50 },
+        "direccion_colonia": { "type": "string", "maxLength": 100 },
+        "direccion_municipio": { "type": "string", "maxLength": 100 },
+        "direccion_cp": { "type": "string", "maxLength": 10 },
+        "direccion": { "type": "string", "maxLength": 500 },
+        "contacto_principal": { "type": "string", "maxLength": 150 },
+        "telefono_directo": { "type": "string", "maxLength": 30 },
+        "correo_contacto": { "type": "string", "maxLength": 100 },
+        "contacto_emergencia": { "type": "string", "maxLength": 200 },
+        "instrucciones_iniciales": { "type": "string", "maxLength": 1000 },
+        "estatus": { "type": "string", "enum": ["Activo", "Inactivo"] },
+        "fecha_inicio_contratacion": { "type": "string", "maxLength": 50 },
+        "fecha_creacion": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["nombre_cliente_o_lugar", "tipo_servicio", "estatus"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Elemento de seguridad, supervisor o administrador del sistema SICA",
+      "type": "object",
+      "properties": {
+        "id_usuario": { "type": "number", "description": "Identificador numérico del usuario" },
+        "nombre_completo": { "type": "string", "maxLength": 150 },
+        "correo_electronico": { "type": "string", "maxLength": 120 },
+        "contrasena_hash": { "type": "string", "maxLength": 255 },
+        "rol": { "type": "string", "enum": ["Administrador", "Supervisor", "Guardia"] },
+        "estatus": { "type": "string", "enum": ["Activo", "Inactivo", "Suspendido", "Baja"] },
+        "curp": { "type": "string", "maxLength": 25 },
+        "telefono": { "type": "string", "maxLength": 30 },
+        "num_empleado_placa": { "type": "string", "maxLength": 50 },
+        "id_servicio_asignado": { "type": "number" },
+        "nombre_servicio": { "type": "string", "maxLength": 200 },
+        "fecha_alta": { "type": "string", "maxLength": 50 },
+        "fecha_creacion": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["nombre_completo", "correo_electronico", "rol", "estatus"]
+    },
+    "Access": {
+      "title": "Access",
+      "description": "Registro de entrada o salida vehicular/peatonal en caseta",
+      "type": "object",
+      "properties": {
+        "id_acceso": { "type": "number" },
+        "id_servicio": { "type": "number" },
+        "id_guardia": { "type": "number" },
+        "tipo_movimiento": { "type": "string", "enum": ["Entrada", "Salida"] },
+        "tipo_visitante": { "type": "string", "enum": ["Vehículo", "Peatón", "Proveedor", "Residente", "Visita", "Empleado", "Contratista"] },
+        "nombre_visitante": { "type": "string", "maxLength": 150 },
+        "identificacion_tipo": { "type": "string", "maxLength": 50 },
+        "identificacion_num": { "type": "string", "maxLength": 50 },
+        "datos_vehiculo": { "type": "string", "maxLength": 150 },
+        "placas": { "type": "string", "maxLength": 30 },
+        "motivo_o_destino": { "type": "string", "maxLength": 200 },
+        "fotografia_evidencia": { "type": "string", "maxLength": 500 },
+        "fecha_hora": { "type": "string", "maxLength": 50 },
+        "observaciones": { "type": "string", "maxLength": 1000 },
+        "sincronizado_offline": { "type": "number" }
+      },
+      "required": ["id_servicio", "id_guardia", "tipo_movimiento", "tipo_visitante", "nombre_visitante"]
+    },
+    "Logbook": {
+      "title": "Logbook",
+      "description": "Evento de bitácora digital, novedad operativa, rondín o emergencia",
+      "type": "object",
+      "properties": {
+        "id_bitacora": { "type": "number" },
+        "id_servicio": { "type": "number" },
+        "id_guardia": { "type": "number" },
+        "tipo_evento": { "type": "string", "enum": ["Rondín", "Novedad Menor", "Incidencia", "Emergencia", "Consigna", "Mantenimiento", "Relevo"] },
+        "descripcion": { "type": "string", "maxLength": 2000 },
+        "fotografia_adjunta": { "type": "string", "maxLength": 500 },
+        "nivel_prioridad": { "type": "string", "enum": ["Baja", "Media", "Alta", "Emergencia"] },
+        "atendida_supervisor": { "type": "number" },
+        "fecha_hora_registro": { "type": "string", "maxLength": 50 },
+        "fecha_atencion": { "type": "string", "maxLength": 50 },
+        "notas_supervisor": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id_servicio", "id_guardia", "tipo_evento", "descripcion"]
+    },
+    "Consigna": {
+      "title": "Consigna",
+      "description": "Consigna u orden de operación para una caseta de servicio",
+      "type": "object",
+      "properties": {
+        "id_consigna": { "type": "number" },
+        "id_servicio": { "type": "number" },
+        "titulo": { "type": "string", "maxLength": 150 },
+        "contenido": { "type": "string", "maxLength": 2000 },
+        "fecha_vigencia_inicio": { "type": "string", "maxLength": 50 },
+        "fecha_vigencia_fin": { "type": "string", "maxLength": 50 },
+        "creado_por": { "type": "number" },
+        "prioridad": { "type": "string", "enum": ["Baja", "Normal", "Alta", "Urgente"] },
+        "estatus": { "type": "string", "enum": ["Vigente", "Vencida", "Cancelada"] },
+        "fecha_creacion": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id_servicio", "titulo", "contenido", "fecha_vigencia_inicio", "fecha_vigencia_fin", "creado_por"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "Asignación de turno operativo de un guardia a un servicio",
+      "type": "object",
+      "properties": {
+        "id_asignacion": { "type": "number" },
+        "id_usuario": { "type": "number" },
+        "id_servicio": { "type": "number" },
+        "fecha_inicio_turno": { "type": "string", "maxLength": 50 },
+        "fecha_fin_turno": { "type": "string", "maxLength": 50 },
+        "notas": { "type": "string", "maxLength": 500 },
+        "creado_en": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id_usuario", "id_servicio", "fecha_inicio_turno", "fecha_fin_turno"]
+    },
+    "Expediente": {
+      "title": "Expediente",
+      "description": "Documento digital del expediente del empleado de seguridad",
+      "type": "object",
+      "properties": {
+        "id_expediente": { "type": "number" },
+        "id_usuario": { "type": "number" },
+        "tipo_documento": { "type": "string", "maxLength": 100 },
+        "nombre_archivo": { "type": "string", "maxLength": 255 },
+        "ruta_archivo": { "type": "string", "maxLength": 500 },
+        "tamano_bytes": { "type": "number" },
+        "estatus_validacion": { "type": "string", "enum": ["Pendiente", "Aprobado", "Rechazado"] },
+        "fecha_subida": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id_usuario", "tipo_documento", "nombre_archivo", "ruta_archivo"]
+    }
+  },
+  "firestore": {
+    "/servicios/{servicioId}": {
+      "schema": "Service",
+      "description": "Colección de servicios e inmuebles custodiados"
+    },
+    "/usuarios/{usuarioId}": {
+      "schema": "User",
+      "description": "Colección de usuarios, credenciales y perfiles de personal"
+    },
+    "/accesos/{accesoId}": {
+      "schema": "Access",
+      "description": "Bitácora vehicular y peatonal de control de acceso en casetas"
+    },
+    "/bitacoras/{bitacoraId}": {
+      "schema": "Logbook",
+      "description": "Eventos de seguridad, rondines, incidencias y emergencias registradas"
+    },
+    "/consignas/{consignaId}": {
+      "schema": "Consigna",
+      "description": "Consignas y órdenes operativas vigentes por caseta"
+    },
+    "/asignaciones_turno/{asignacionId}": {
+      "schema": "Shift",
+      "description": "Turnos y cuadrantes programados para elementos de seguridad"
+    },
+    "/expedientes/{expedienteId}": {
+      "schema": "Expediente",
+      "description": "Expedientes digitales y documentación de guardias"
+    }
+  }
+}

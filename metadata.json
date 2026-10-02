@@ -1,0 +1,8 @@
+{
+  "name": "SICA - Sistema de Gestión y Control de Acceso",
+  "description": "Sistema PWA de gestión y control de accesos vehiculares y peatonales, bitácora de novedades y emergencias, supervisión operativa y reportes para seguridad privada.",
+  "requestFramePermissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

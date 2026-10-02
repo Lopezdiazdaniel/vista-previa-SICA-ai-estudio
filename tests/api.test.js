@@ -255,6 +255,24 @@ test('Suite SICA: Panel Gerencial, Métricas y Exportación Excel/CSV (RF-05)', 
     assert.strictEqual(res.statusCode, 200);
     assert.ok(res.headers['content-type'].includes('text/csv'));
   });
+
+  await t.test('Generación y descarga de documento PDF oficial', async () => {
+    const res = await apiRequest('/api/reports/export/pdf?tipo=accesos', 'GET', null, adminToken);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.headers['content-type'], 'application/pdf');
+    assert.ok(res.headers['content-disposition'].includes('.pdf'));
+  });
+
+  await t.test('Consulta de tendencia de accesos de 7 días para gráfico Chart.js', async () => {
+    const res = await apiRequest('/api/reports/access-trend-7days', 'GET', null, adminToken);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.days.length, 7);
+    assert.strictEqual(res.data.labels.length, 7);
+    assert.strictEqual(res.data.entradas.length, 7);
+    assert.strictEqual(res.data.salidas.length, 7);
+    assert.ok(typeof res.data.totales.entradas === 'number');
+    assert.ok(typeof res.data.totales.salidas === 'number');
+  });
 });
 
 test('Suite SICA: Consignas Operativas y Bitácora con Ordenamiento SQL (RF-03, RF-04)', async (t) => {

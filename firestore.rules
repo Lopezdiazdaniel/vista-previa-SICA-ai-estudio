@@ -1,0 +1,138 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny all unmapped paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Exclusively allow the owner account (lopzcecy@gmail.com)
+    function isOwner() {
+      return isSignedIn() &&
+             request.auth.token.email == 'lopzcecy@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    // Validation for Service
+    function isValidService(data) {
+      return data.nombre_cliente_o_lugar is string &&
+             data.nombre_cliente_o_lugar.size() > 0 &&
+             data.nombre_cliente_o_lugar.size() <= 200 &&
+             data.tipo_servicio is string &&
+             data.tipo_servicio in ['Residencial', 'Industrial', 'Corporativo', 'Comercial', 'Educativo', 'Otro'] &&
+             data.estatus is string &&
+             data.estatus in ['Activo', 'Inactivo'];
+    }
+
+    // Validation for User
+    function isValidUser(data) {
+      return data.nombre_completo is string &&
+             data.nombre_completo.size() > 0 &&
+             data.nombre_completo.size() <= 150 &&
+             data.correo_electronico is string &&
+             data.correo_electronico.size() <= 120 &&
+             data.rol is string &&
+             data.rol in ['Administrador', 'Supervisor', 'Guardia'] &&
+             data.estatus is string &&
+             data.estatus in ['Activo', 'Inactivo', 'Suspendido', 'Baja'];
+    }
+
+    // Validation for Access
+    function isValidAccess(data) {
+      return data.tipo_movimiento is string &&
+             data.tipo_movimiento in ['Entrada', 'Salida'] &&
+             data.tipo_visitante is string &&
+             data.tipo_visitante in ['Vehículo', 'Peatón', 'Proveedor', 'Residente', 'Visita', 'Empleado', 'Contratista'] &&
+             data.nombre_visitante is string &&
+             data.nombre_visitante.size() > 0 &&
+             data.nombre_visitante.size() <= 150;
+    }
+
+    // Validation for Logbook
+    function isValidLogbook(data) {
+      return data.tipo_evento is string &&
+             data.tipo_evento in ['Rondín', 'Novedad Menor', 'Incidencia', 'Emergencia', 'Consigna', 'Mantenimiento', 'Relevo'] &&
+             data.descripcion is string &&
+             data.descripcion.size() > 0 &&
+             data.descripcion.size() <= 2000;
+    }
+
+    // Validation for Consigna
+    function isValidConsigna(data) {
+      return data.titulo is string &&
+             data.titulo.size() > 0 &&
+             data.titulo.size() <= 150 &&
+             data.contenido is string &&
+             data.contenido.size() > 0 &&
+             data.contenido.size() <= 2000 &&
+             data.fecha_vigencia_inicio is string &&
+             data.fecha_vigencia_fin is string;
+    }
+
+    // Collections strictly restricted to owner account: lopzcecy@gmail.com
+    match /servicios/{servicioId} {
+      allow get, list: if isOwner();
+      allow create, update: if isOwner() && isValidId(servicioId) && isValidService(incoming());
+      allow delete: if isOwner();
+    }
+
+    match /usuarios/{usuarioId} {
+      allow get, list: if isOwner();
+      allow create, update: if isOwner() && isValidId(usuarioId) && isValidUser(incoming());
+      allow delete: if isOwner();
+    }
+
+    match /accesos/{accesoId} {
+      allow get, list: if isOwner();
+      allow create: if isOwner() && isValidId(accesoId) && isValidAccess(incoming());
+      allow update, delete: if isOwner();
+    }
+
+    match /bitacoras/{bitacoraId} {
+      allow get, list: if isOwner();
+      allow create, update: if isOwner() && isValidId(bitacoraId) && isValidLogbook(incoming());
+      allow delete: if isOwner();
+    }
+
+    match /consignas/{consignaId} {
+      allow get, list: if isOwner();
+      allow create, update: if isOwner() && isValidId(consignaId) && isValidConsigna(incoming());
+      allow delete: if isOwner();
+    }
+
+    match /asignaciones_turno/{asignacionId} {
+      allow read, write: if isOwner();
+    }
+
+    match /expedientes/{expedienteId} {
+      allow read, write: if isOwner();
+    }
+
+    match /admins/{adminId} {
+      allow read, write: if isOwner();
+    }
+
+    // Diagnostics / health check
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}

@@ -30,6 +30,9 @@ window.AdminView = {
         <button class="nav-tab-btn ${this.activeTab === 'reportes' ? 'active' : ''}" data-tab="reportes">
           📑 Reportes y Auditoría
         </button>
+        <button class="nav-tab-btn ${this.activeTab === 'firestore' ? 'active' : ''}" data-tab="firestore" style="color: #fbbf24; font-weight: 700;">
+          🔥 Base Firestore
+        </button>
       </div>
       <div id="admin-tab-content" style="padding: 1.5rem; max-width: 1400px; margin: 0 auto; width: 100%;">
         <!-- Dynamic Content -->
@@ -40,9 +43,15 @@ window.AdminView = {
     const tabBtns = container.querySelectorAll('.nav-tab-btn');
     tabBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
+        const newTab = btn.getAttribute('data-tab');
+        if (this.activeTab !== newTab) {
+          if (window.App && window.App.pushHistory) {
+            window.App.pushHistory({ type: 'admin-tab', tab: this.activeTab });
+          }
+        }
         tabBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        this.activeTab = btn.getAttribute('data-tab');
+        this.activeTab = newTab;
         this.renderTabContent();
       });
     });
@@ -80,6 +89,11 @@ window.AdminView = {
         break;
       case 'reportes':
         await this.renderReportesTab(tabContent);
+        break;
+      case 'firestore':
+        if (window.FirestoreView) {
+          window.FirestoreView.render();
+        }
         break;
     }
   },
@@ -206,7 +220,7 @@ window.AdminView = {
           <h2 style="font-size: 1.3rem; font-weight: 800;">Registro General de Entradas y Salidas</h2>
           <div style="display: flex; gap: 10px;">
             <button class="btn-secondary" onclick="AdminView.exportarExcelAccesos()">📊 Exportar Excel</button>
-            <button class="btn-secondary" onclick="window.print()">🖨️ Imprimir / PDF</button>
+            <button class="btn-secondary" onclick="AdminView.imprimirPDFAccesos()" title="Generar y descargar documento PDF oficial">🖨️ Imprimir / PDF</button>
           </div>
         </div>
 
@@ -333,8 +347,9 @@ window.AdminView = {
       container.innerHTML = `
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 1.5rem;">
           <h2 style="font-size: 1.3rem; font-weight: 800;">Bitácora Operativa Digital</h2>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn-secondary" onclick="AdminView.exportarExcelBitacora()">📊 Exportar Excel</button>
+            <button class="btn-secondary" onclick="AdminView.imprimirPDFBitacoras()" title="Generar y descargar bitácora oficial en PDF">🖨️ Imprimir / PDF</button>
             <button class="btn-primary" onclick="AdminView.openModalNuevaBitacoraAdmin()">➕ Nuevo Registro</button>
           </div>
         </div>
@@ -642,7 +657,10 @@ window.AdminView = {
           </div>
 
           <div style="display: flex; gap: 12px; margin-top: 1.5rem; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="AdminView.descargarExcelReporte()">
+            <button class="btn-primary" onclick="AdminView.descargarPdfReporte()" title="Generar y descargar reporte ejecutivo oficial en PDF">
+              📄 Descargar Reporte Oficial en PDF
+            </button>
+            <button class="btn-secondary" onclick="AdminView.descargarExcelReporte()">
               📊 Descargar Libro de Excel (.XLSX)
             </button>
             <button class="btn-secondary" onclick="AdminView.descargarCsvReporte('accesos')">
@@ -1237,6 +1255,70 @@ window.AdminView = {
       window.App.showToast(`Archivo ${fn} descargado exitosamente`, 'success');
     } catch (e) {
       window.App.showToast(e.message, 'error');
+    }
+  },
+
+  async imprimirPDFAccesos() {
+    try {
+      window.App.showToast('Generando documento PDF oficial de accesos...', 'info');
+      const id_servicio = document.getElementById('filter-acceso-servicio') ? document.getElementById('filter-acceso-servicio').value : '';
+      const tipo_movimiento = document.getElementById('filter-acceso-mov') ? document.getElementById('filter-acceso-mov').value : '';
+      const tipo_visitante = document.getElementById('filter-acceso-tipo') ? document.getElementById('filter-acceso-tipo').value : '';
+      const search = document.getElementById('filter-acceso-search') ? document.getElementById('filter-acceso-search').value : '';
+
+      const res = await window.SICA_API.getAccesos({
+        id_servicio,
+        tipo_movimiento,
+        tipo_visitante,
+        search,
+        limit: 200
+      });
+
+      if (!res.accesos || res.accesos.length === 0) {
+        window.App.showToast('No hay registros de acceso para generar el PDF', 'warning');
+        return;
+      }
+
+      const fn = await window.SICA_PDF.exportarAccesosPDF(res.accesos, {
+        titulo: 'REPORTE OFICIAL DE CONTROL DE ACCESOS'
+      });
+      window.App.showToast(`Documento PDF ${fn} generado y descargado exitosamente`, 'success');
+    } catch (e) {
+      console.error('Error al generar PDF de accesos:', e);
+      window.App.showToast('Error al generar PDF: ' + e.message, 'error');
+    }
+  },
+
+  async imprimirPDFBitacoras() {
+    try {
+      window.App.showToast('Generando documento PDF oficial de bitácora...', 'info');
+      const res = await window.SICA_API.getBitacoras({ limit: 200 });
+
+      if (!res.bitacoras || res.bitacoras.length === 0) {
+        window.App.showToast('No hay registros en bitácora para generar el PDF', 'warning');
+        return;
+      }
+
+      const fn = await window.SICA_PDF.exportarBitacorasPDF(res.bitacoras, {
+        titulo: 'REPORTE OFICIAL DE BITÁCORA E INCIDENCIAS'
+      });
+      window.App.showToast(`Documento PDF ${fn} generado y descargado exitosamente`, 'success');
+    } catch (e) {
+      console.error('Error al generar PDF de bitácoras:', e);
+      window.App.showToast('Error al generar PDF: ' + e.message, 'error');
+    }
+  },
+
+  async descargarPdfReporte() {
+    try {
+      window.App.showToast('Generando reporte gerencial consolidado en PDF...', 'info');
+      const id_servicio = document.getElementById('rep-servicio')?.value || '';
+      const data = await window.SICA_API.getDashboardMetrics(id_servicio);
+      const fn = await window.SICA_PDF.exportarReporteGerencialPDF(data);
+      window.App.showToast(`Reporte consolidado ${fn} descargado exitosamente`, 'success');
+    } catch (e) {
+      console.error('Error al generar reporte gerencial PDF:', e);
+      window.App.showToast('Error al generar reporte PDF: ' + e.message, 'error');
     }
   },
 

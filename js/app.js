@@ -1,6 +1,19 @@
 // SICA - Core Application, Router, Web Audio Synthesizer, and PWA Lifecycle
 window.App = {
   audioCtx: null,
+  navHistory: [],
+  currentHash: null,
+  isGoingBack: false,
+
+  pushHistory(entry) {
+    if (this.isGoingBack) return;
+    const last = this.navHistory[this.navHistory.length - 1];
+    if (last && last.type === entry.type && last.tab === entry.tab && last.hash === entry.hash) {
+      return;
+    }
+    this.navHistory.push(entry);
+    if (this.navHistory.length > 50) this.navHistory.shift();
+  },
 
   async init() {
     console.log('[SICA] Inicializando plataforma...');
@@ -66,6 +79,11 @@ window.App = {
       return;
     }
 
+    if (!this.isGoingBack && this.currentHash && this.currentHash !== hash) {
+      this.pushHistory({ type: 'route', hash: this.currentHash });
+    }
+    this.currentHash = hash;
+
     // Show header with user profile badge
     headerContainer.style.display = 'flex';
     this.renderHeader(headerContainer, storedUser);
@@ -101,6 +119,10 @@ window.App = {
       await window.SupervisorView.render(mainContainer);
     } else if (hash.startsWith('#guardia')) {
       await window.GuardiaView.render(mainContainer);
+    } else if (hash.startsWith('#firestore')) {
+      if (window.FirestoreView) {
+        window.FirestoreView.render();
+      }
     } else {
       window.location.hash = storedUser.rol === 'Administrador' ? '#admin' : storedUser.rol === 'Supervisor' ? '#supervisor' : '#guardia';
     }
@@ -124,6 +146,10 @@ window.App = {
       </div>
 
       <div class="user-status-bar">
+        <button class="btn-firestore" onclick="window.location.hash='#firestore'" title="Explorar y sincronizar base de datos en Cloud Firestore" style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <span>🔥</span> Base Firestore
+        </button>
+
         <div class="user-badge">
           <div class="user-avatar">${(user.nombre_completo || 'U').charAt(0)}</div>
           <div class="user-info-text">
@@ -139,48 +165,121 @@ window.App = {
     `;
   },
 
-  irAtras() {
+  async irAtras() {
     const user = window.SICA_API.getStoredUser();
     if (!user) {
       window.location.hash = '#login';
       return;
     }
 
-    // 1. If any modal dialog is open, close it
-    const openModals = document.querySelectorAll('.modal-overlay.active');
+    // 1. If any modal dialog is open, close it immediately
+    const openModals = document.querySelectorAll('.modal-overlay, .modal-backdrop');
     if (openModals.length > 0) {
       openModals.forEach(m => m.remove());
       return;
     }
 
-    // 2. If inside Admin view and not on dashboard tab, go to dashboard tab
-    if (window.AdminView && window.AdminView.activeTab && window.AdminView.activeTab !== 'dashboard') {
-      const dashboardBtn = document.querySelector('.nav-tab-btn[data-tab="dashboard"]');
-      if (dashboardBtn) {
-        dashboardBtn.click();
+    // 2. If currently viewing the Firestore module
+    const isFirestore = window.location.hash === '#firestore' ||
+      (window.AdminView && window.AdminView.activeTab === 'firestore') ||
+      document.getElementById('firestore-info-card') !== null;
+
+    if (isFirestore) {
+      if (user.rol === 'Administrador') {
+        window.location.hash = '#admin';
+        if (window.AdminView) {
+          window.AdminView.activeTab = 'dashboard';
+          const mainContainer = document.getElementById('app-main');
+          if (mainContainer) await window.AdminView.render(mainContainer);
+        }
+        return;
+      } else if (user.rol === 'Supervisor') {
+        window.location.hash = '#supervisor';
+        if (window.SupervisorView) {
+          window.SupervisorView.switchTab('monitoreo');
+        }
+        return;
+      } else {
+        window.location.hash = '#guardia';
+        const mainContainer = document.getElementById('app-main');
+        if (mainContainer && window.GuardiaView) await window.GuardiaView.render(mainContainer);
         return;
       }
     }
 
-    // 3. If inside Supervisor view and not on monitoreo, go to monitoreo
+    // 3. Pop from navigation history stack if available
+    if (this.navHistory.length > 0) {
+      const prev = this.navHistory.pop();
+      this.isGoingBack = true;
+      try {
+        if (prev.type === 'admin-tab' && user.rol === 'Administrador') {
+          if (window.AdminView) {
+            window.AdminView.activeTab = prev.tab;
+            const mainContainer = document.getElementById('app-main');
+            const tabBtn = document.querySelector(`.nav-tab-btn[data-tab="${prev.tab}"]`);
+            if (tabBtn) {
+              tabBtn.click();
+            } else if (mainContainer) {
+              await window.AdminView.render(mainContainer);
+            }
+          }
+          return;
+        } else if (prev.type === 'supervisor-tab' && (user.rol === 'Supervisor' || user.rol === 'Administrador')) {
+          if (window.SupervisorView) {
+            window.SupervisorView.switchTab(prev.tab);
+          }
+          return;
+        } else if (prev.type === 'route' && prev.hash) {
+          window.location.hash = prev.hash;
+          return;
+        }
+      } finally {
+        setTimeout(() => { this.isGoingBack = false; }, 100);
+      }
+    }
+
+    // 4. If inside Admin view and not on dashboard tab, go to dashboard tab
+    if (window.AdminView && window.AdminView.activeTab && window.AdminView.activeTab !== 'dashboard') {
+      window.AdminView.activeTab = 'dashboard';
+      const mainContainer = document.getElementById('app-main');
+      const dashboardBtn = document.querySelector('.nav-tab-btn[data-tab="dashboard"]');
+      if (dashboardBtn) {
+        dashboardBtn.click();
+      } else if (mainContainer) {
+        await window.AdminView.render(mainContainer);
+      }
+      return;
+    }
+
+    // 5. If inside Supervisor view and not on monitoreo, go to monitoreo
     if (window.SupervisorView && window.SupervisorView.activeTab && window.SupervisorView.activeTab !== 'monitoreo') {
       window.SupervisorView.switchTab('monitoreo');
       return;
     }
 
-    // 4. Default: go to home dashboard for current role
-    this.irAlInicio();
+    // 6. Native browser history fallback if available
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    // 7. Default: Return to home dashboard for current role (forced)
+    this.irAlInicio(true);
   },
 
-  irAlInicio() {
+  irAlInicio(force = false) {
     const user = window.SICA_API.getStoredUser();
     if (!user) {
       window.location.hash = '#login';
       return;
     }
-    if (user.rol === 'Administrador') window.location.hash = '#admin';
-    else if (user.rol === 'Supervisor') window.location.hash = '#supervisor';
-    else window.location.hash = '#guardia';
+    const targetHash = user.rol === 'Administrador' ? '#admin' : user.rol === 'Supervisor' ? '#supervisor' : '#guardia';
+    if (window.location.hash === targetHash) {
+      if (force) this.handleRoute();
+    } else {
+      window.location.hash = targetHash;
+      if (force) this.handleRoute();
+    }
   },
 
   renderLoginScreen(container) {

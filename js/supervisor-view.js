@@ -30,6 +30,11 @@ window.SupervisorView = {
   },
 
   switchTab(tab) {
+    if (this.activeTab !== tab) {
+      if (window.App && window.App.pushHistory) {
+        window.App.pushHistory({ type: 'supervisor-tab', tab: this.activeTab });
+      }
+    }
     this.activeTab = tab;
     const btns = document.querySelectorAll('.nav-tabs .nav-tab-btn');
     btns.forEach(b => {
@@ -119,6 +124,53 @@ window.SupervisorView = {
           </div>
         </div>
 
+        <!-- Gráfico de Líneas Chart.js: Flujo de Entradas y Salidas (Últimos 7 Días) -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.5rem; margin-top: 1.5rem; box-shadow: var(--shadow-md);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 1.25rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.25rem;">📈</span>
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: #fff;">Tendencia de Accesos (Últimos 7 Días)</h3>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">
+                Comparativa diaria de flujo vehicular y peatonal: Entradas vs. Salidas registradas en casetas
+              </p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <select id="supervisor-chart-service-filter" onchange="window.SupervisorView.loadChartData(this.value)" style="background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none;">
+                <option value="">Todos los Inmuebles / Casetas</option>
+              </select>
+              <button onclick="window.SupervisorView.loadChartData(document.getElementById('supervisor-chart-service-filter')?.value)" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;" title="Actualizar datos del gráfico">
+                <span>🔄</span> Actualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- Resumen de Totales del Gráfico (Clean metadata, Anti-slop) -->
+          <div id="chart-summary-stats" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: #10b981;"></span>
+              <span style="color: var(--text-muted);">Total Entradas:</span>
+              <strong id="stat-total-entradas" style="color: #34d399; font-size: 1rem;">--</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: #0284c7;"></span>
+              <span style="color: var(--text-muted);">Total Salidas:</span>
+              <strong id="stat-total-salidas" style="color: #38bdf8; font-size: 1rem;">--</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--text-muted);">Flujo Neto Total:</span>
+              <strong id="stat-total-movimientos" style="color: #fff; font-size: 1rem;">--</strong>
+            </div>
+          </div>
+
+          <!-- Canvas del Gráfico Chart.js -->
+          <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="chart-accesos-semana"></canvas>
+          </div>
+        </div>
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
           <!-- Últimos eventos de bitácora -->
           <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.5rem;">
@@ -161,8 +213,190 @@ window.SupervisorView = {
           </div>
         </div>
       `;
+
+      // Initialize Chart.js line chart for 7-day access trend
+      await this.initChart();
     } catch (err) {
       container.innerHTML = `<div class="toast error">Error al cargar monitoreo: ${err.message}</div>`;
+    }
+  },
+
+  // ==========================================
+  // GRÁFICO CHART.JS: TENDENCIA DE 7 DÍAS
+  // ==========================================
+  accesosChart: null,
+
+  async initChart(serviceId = null) {
+    await this.populateServiceFilter();
+    await this.loadChartData(serviceId);
+  },
+
+  async populateServiceFilter() {
+    const select = document.getElementById('supervisor-chart-service-filter');
+    if (!select) return;
+    try {
+      const res = await window.SICA_API.getServices();
+      const services = res.services || [];
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">Todos los Inmuebles / Casetas</option>' +
+        services.map(s => `<option value="${s.id_servicio}">${s.nombre_cliente_o_lugar}</option>`).join('');
+      if (currentVal) select.value = currentVal;
+    } catch (e) {
+      console.warn('Error al cargar servicios para filtro de gráfico:', e);
+    }
+  },
+
+  async loadChartData(serviceId = null) {
+    const canvas = document.getElementById('chart-accesos-semana');
+    if (!canvas) return;
+
+    try {
+      const data = await window.SICA_API.getAccessTrend7Days(serviceId);
+
+      const elEntradas = document.getElementById('stat-total-entradas');
+      const elSalidas = document.getElementById('stat-total-salidas');
+      const elTotal = document.getElementById('stat-total-movimientos');
+      if (elEntradas) elEntradas.innerText = (data.totales?.entradas || 0).toLocaleString();
+      if (elSalidas) elSalidas.innerText = (data.totales?.salidas || 0).toLocaleString();
+      if (elTotal) elTotal.innerText = `${(data.totales?.total || 0).toLocaleString()} movimientos`;
+
+      if (typeof Chart === 'undefined') {
+        console.warn('Chart.js no está disponible en window.Chart');
+        return;
+      }
+
+      if (this.accesosChart) {
+        this.accesosChart.destroy();
+        this.accesosChart = null;
+      }
+
+      const ctx = canvas.getContext('2d');
+
+      const gradEntradas = ctx.createLinearGradient(0, 0, 0, 260);
+      gradEntradas.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+      gradEntradas.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+      const gradSalidas = ctx.createLinearGradient(0, 0, 0, 260);
+      gradSalidas.addColorStop(0, 'rgba(2, 132, 199, 0.28)');
+      gradSalidas.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+
+      this.accesosChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [
+            {
+              label: 'Entradas (Ingresos)',
+              data: data.entradas,
+              borderColor: '#10b981',
+              backgroundColor: gradEntradas,
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#10b981',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 7,
+              pointHoverBackgroundColor: '#10b981',
+              pointHoverBorderColor: '#ffffff',
+              pointHoverBorderWidth: 3
+            },
+            {
+              label: 'Salidas (Egresos)',
+              data: data.salidas,
+              borderColor: '#0284c7',
+              backgroundColor: gradSalidas,
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#0284c7',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 7,
+              pointHoverBackgroundColor: '#0284c7',
+              pointHoverBorderColor: '#ffffff',
+              pointHoverBorderWidth: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: {
+                color: '#f8fafc',
+                boxWidth: 14,
+                boxHeight: 14,
+                usePointStyle: true,
+                pointStyle: 'circle',
+                font: {
+                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  size: 12,
+                  weight: '600'
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#f8fafc',
+              bodyColor: '#cbd5e1',
+              borderColor: '#334155',
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 8,
+              boxPadding: 4,
+              usePointStyle: true,
+              callbacks: {
+                footer: (tooltipItems) => {
+                  let sum = 0;
+                  tooltipItems.forEach(item => { sum += item.parsed.y; });
+                  return `Total día: ${sum} registros`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.05)',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#94a3b8',
+                font: {
+                  size: 11,
+                  weight: '500'
+                }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(255, 255, 255, 0.06)',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#94a3b8',
+                precision: 0,
+                font: {
+                  size: 11
+                }
+              }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error al cargar datos del gráfico de accesos:', err);
     }
   },
 
@@ -179,7 +413,10 @@ window.SupervisorView = {
             <h2 style="font-size: 1.3rem; font-weight: 800;">Validación de Bitácoras e Incidencias</h2>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Revisión, confirmación y dictamen de supervisión operativa para eventos de caseta.</p>
           </div>
-          <button class="btn-secondary" onclick="SupervisorView.exportarExcel()">📊 Exportar a Excel</button>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-secondary" onclick="SupervisorView.exportarExcel()">📊 Exportar a Excel</button>
+            <button class="btn-secondary" onclick="SupervisorView.imprimirPDFBitacoras()" title="Generar y descargar documento PDF de incidencias">🖨️ Imprimir / PDF</button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -240,9 +477,12 @@ window.SupervisorView = {
     try {
       const res = await window.SICA_API.getAccesos({ limit: 50 });
       container.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px;">
           <h2 style="font-size: 1.3rem; font-weight: 800;">Registro de Accesos de Zona</h2>
-          <button class="btn-secondary" onclick="SupervisorView.exportarExcel()">📊 Exportar Excel</button>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-secondary" onclick="SupervisorView.exportarExcel()">📊 Exportar Excel</button>
+            <button class="btn-secondary" onclick="SupervisorView.imprimirPDFAccesos()" title="Generar y descargar documento PDF de accesos">🖨️ Imprimir / PDF</button>
+          </div>
         </div>
         <div class="table-responsive">
           <table class="data-table">
@@ -391,6 +631,42 @@ window.SupervisorView = {
       window.App.showToast(`Archivo ${fn} descargado exitosamente`, 'success');
     } catch (e) {
       window.App.showToast(e.message, 'error');
+    }
+  },
+
+  async imprimirPDFAccesos() {
+    try {
+      window.App.showToast('Generando documento PDF oficial de accesos...', 'info');
+      const res = await window.SICA_API.getAccesos({ limit: 200 });
+      if (!res.accesos || res.accesos.length === 0) {
+        window.App.showToast('No hay registros de acceso para generar el PDF', 'warning');
+        return;
+      }
+      const fn = await window.SICA_PDF.exportarAccesosPDF(res.accesos, {
+        titulo: 'SUPERVISIÓN OPERATIVA · CONTROL DE ACCESOS'
+      });
+      window.App.showToast(`Documento PDF ${fn} descargado exitosamente`, 'success');
+    } catch (e) {
+      console.error('Error al generar PDF de accesos:', e);
+      window.App.showToast('Error al generar PDF: ' + e.message, 'error');
+    }
+  },
+
+  async imprimirPDFBitacoras() {
+    try {
+      window.App.showToast('Generando documento PDF de incidencias...', 'info');
+      const res = await window.SICA_API.getBitacoras({ limit: 200 });
+      if (!res.bitacoras || res.bitacoras.length === 0) {
+        window.App.showToast('No hay registros de bitácora para generar el PDF', 'warning');
+        return;
+      }
+      const fn = await window.SICA_PDF.exportarBitacorasPDF(res.bitacoras, {
+        titulo: 'SUPERVISIÓN OPERATIVA · VALIDACIÓN DE INCIDENCIAS'
+      });
+      window.App.showToast(`Documento PDF ${fn} descargado exitosamente`, 'success');
+    } catch (e) {
+      console.error('Error al generar PDF de bitácoras:', e);
+      window.App.showToast('Error al generar PDF: ' + e.message, 'error');
     }
   },
 
